@@ -1,0 +1,181 @@
+import Nat "mo:base/Nat";
+import Nat8 "mo:base/Nat8";
+import Int "mo:base/Int";
+import Array "mo:base/Array";
+import Text "mo:base/Text";
+import Iter "mo:base/Iter";
+import Random "mo:base/Random";
+import Option "mo:base/Option";
+import Blob "mo:base/Blob";
+
+/**
+***************************************
+*    Author: jli                      
+*    Email:  liliannab361@gmail.com   
+*    ICP Wallet Adress:  f71e5df2b22dd2a75ce63882215ca5b7c07badbecb9f625fde5bf3eb24c95f39               
+*    Game's name: stone-scissors-cloth
+*    Version: 1.0
+**************************************  
+
+This is a stone-scissors-cloth game without UI. 
+You can visite the pic to check what this game is: https://mfcp.com.cn/game.jpg
+
+Rules of the game: 
+1.  there are three rounds in one match. In each round, you need to input stone (o), scissors (v) and cloth (w). 
+2.  Because stone can smash scissors, therefor stone > scissors (o > v). 
+    Because stone will be surrounded by cloth, therefor  stone < cloth (o < w). 
+    Because scissors can cut cloth, therefor  scissors > cloth (v > w). 
+3. You bet with robot BOT, which may randomly (pseudo-random) produce something like o/v/w. 
+4.  Losing a round will deduct one point,  and draw a round  will not be scored, and winning a round will plus one point.
+5. When the game ends after 3 rounds, your total score must be greater than or equal to 1 to win! Good luck.
+
+ In addition, o-v-w are lowercase !
+
+ *
+ */
+
+
+actor {
+
+    // ---- game record ----
+    object game {
+       // current round 
+       var round : Nat = 0;
+       // use's score in the game
+       var score : Int = 0;
+
+        // user's bet in a round 
+       var round_record_user : [var Text] = [var "","","",""];
+       
+       // bot's bet in a round 
+       var round_record_bot : [var Text] = [var "","","",""];
+       
+       // user's result in a round
+       var round_result : [var Text] = [var "","","",""];
+
+        // increase the round after a round
+        public func inc_round():Nat{ 
+             round += 1 ;   
+            if(round > 3)    { round := 1; score :=0; };  
+             return round;                    
+        };   
+
+        // get current round
+        public func get_round():Nat{                
+             return round;       
+        };   
+
+        // add a round score for user in a game
+        public func add_user_score(s:Int){
+            score := score + s;
+        };    
+        public func get_user_score():Int{
+            score;
+        };
+
+        //set details of user in round i
+        public func set_round_record_user(i:Nat, t:Text){           
+            round_record_user[i]    :=  t;
+        };
+        public func get_round_record_user(i:Nat):Text{           
+            round_record_user[i];
+        };
+
+        //set details of bot in round i
+        public func set_round_record_bot(i:Nat, t:Text){
+            round_record_bot[i]    :=  t;
+        };
+         public func get_round_record_bot(i:Nat):Text{
+            round_record_bot[i];
+        };
+
+        // set details of round i :  lose/win/draw
+        public func set_round_record(i:Nat, t:Text){
+            round_result[i] := t;
+        };
+        public func get_round_record(i:Nat):Text{
+            round_result[i];
+        };
+           
+    };
+
+
+public func input_and_click_to_bet(t:Text) : async Text {
+       if(t=="v" or t=="o" or t=="w"){
+             let r:Nat = game.inc_round();             
+             let b:Text = await betWithBot(t);
+             var i:Nat = 1;    
+             var details:  Text = ""       ;
+             while( i <= r ){
+                details := "Round "  # Nat.toText(i) 
+                #  ": you "
+                # game.get_round_record_user(i)                 
+                #  " <" # game.get_round_record(i) # "> bot " # game.get_round_record_bot(i) # "\n"
+                # details;
+
+                i := i+1;
+             };
+             if(r==3){
+                var score:Int = game.get_user_score();  
+                var s:Text="";              
+                if(score>=1){s:="(WIN)";}
+                else if(score < 0){s:="(LOSE)";}
+                else {s:="DRAW";};
+                details := "YOU " #  s # " in this game!  Datails:\n\n" # details;
+             };
+             details;
+    }else{        
+        var r:Nat =  game.get_round();  
+        if( r > 0)  {
+            "Round "  # Nat.toText(r) #  ":  Input symbol(v/o/w) and click 'CALL' button :)";
+        }
+        else{
+            "Input symbol(v/o/w) and click 'CALL' button :)";
+        }
+     }
+  };
+
+
+
+// --- compare ---
+func betWithBot(usr:Text): async Text{
+    var b : Nat = Random.rangeFrom(Nat8.fromNat(3), await Random.blob());
+    while( b > 2 ){
+        b:= Random.rangeFrom(Nat8.fromNat(3), await Random.blob());
+    };
+    let str:[var Text] = [var "v","o","w"];
+    var bot:Text = str[b];
+    var round:Nat = game.get_round();
+    game.set_round_record_user(round,usr);
+    game.set_round_record_bot(round,bot);
+    switch usr{
+        case "v" {
+            switch bot{
+              case "v" {game.add_user_score(0); game.set_round_record(round,"draw");return "";}  ;
+              case "o" {game.add_user_score(-1);game.set_round_record(round,"lose"); return "";}  ;
+              case "w" {game.add_user_score(1); game.set_round_record(round,"win");  return "";}  ;              
+            } ;                
+        };
+        case "o"{
+            switch bot{
+              case "v" { game.add_user_score(1); game.set_round_record(round,"win");return "";}  ;
+              case "o" { game.add_user_score(0);game.set_round_record(round,"draw"); return ""; }  ;
+              case "w" { game.add_user_score(-1);game.set_round_record(round,"lose"); return ""; }  ;              
+            } ;        
+        }; 
+        case "w"{
+            switch bot{
+              case "v" { game.add_user_score(-1); game.set_round_record(round,"lose");return ""; }  ;
+              case "o" { game.add_user_score(1);game.set_round_record(round,"win"); return "";}  ;
+              case "w" { game.add_user_score(0);game.set_round_record(round,"draw"); return ""; }  ;              
+            } ;        
+        };
+    } ; 
+    return "";
+};
+
+ 
+
+  
+
+}
